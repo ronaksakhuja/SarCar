@@ -2,6 +2,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="sodevan.sarcar2">
 
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="com.google.android.providers.gsf.permission.READ_GSERVICES" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -21,7 +29,14 @@
         <activity
             android:name=".Login"
             android:theme="@style/AppTheme2" />
-        <activity android:name=".Map"></activity>
+        <activity android:name=".Map"
+            android:theme="@style/AppTheme2"
+           />
+        <meta-data
+            android:name="com.google.android.maps.v2.API_KEY"
+            android:value="AIzaSyB2Lk1iYtMQY2uFFy8M23MvOQv0JP0KPE0" />
     </application>
+
+
 
 </manifest>
