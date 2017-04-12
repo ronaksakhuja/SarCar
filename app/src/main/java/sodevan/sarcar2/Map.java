@@ -106,7 +106,7 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
             public void onCancelled(DatabaseError databaseError) {
 
             }
-        })
+        });
 
     }
 
