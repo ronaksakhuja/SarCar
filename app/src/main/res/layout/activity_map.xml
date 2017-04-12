@@ -57,14 +57,18 @@
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:id="@+id/mapfragment"
         android:layout_below="@id/appbar">
         <fragment
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
             android:id="@+id/map2"
             android:name="com.google.android.gms.maps.SupportMapFragment"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"/>
+            xmlns:tools="http://schemas.android.com/tools"
+            tools:context="sodevan.sarcar.Map"/>
+
+
     </FrameLayout>
+
 
 
 
