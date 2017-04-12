@@ -10,6 +10,8 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
 
+
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -32,9 +34,12 @@
         <activity android:name=".Map"
             android:theme="@style/AppTheme2"
            />
+
+
         <meta-data
             android:name="com.google.android.maps.v2.API_KEY"
             android:value="AIzaSyB2Lk1iYtMQY2uFFy8M23MvOQv0JP0KPE0" />
+
     </application>
 
 
