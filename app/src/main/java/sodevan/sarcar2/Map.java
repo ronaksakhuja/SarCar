@@ -9,6 +9,7 @@ import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.SystemClock;
+
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.animation.LinearInterpolator;
