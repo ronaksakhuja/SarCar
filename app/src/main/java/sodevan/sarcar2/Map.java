@@ -9,7 +9,6 @@ import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.SystemClock;
-
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.animation.LinearInterpolator;
@@ -24,6 +23,8 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import java.util.HashMap;
+import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -32,6 +33,8 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
     GoogleMap gmap ;
     Marker marker;
     private int flag = 0 , flag2 =0 ;
+    HashMap<String,LatLng> NearbyVehichles ;
+    HashMap<String , Marker> markersred ;
 
 
 
@@ -128,6 +131,12 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
             gmap.animateCamera(CameraUpdateFactory.newLatLngZoom(loc, 19.0f));
             flag=1 ;
         }
+
+        else if (marker!=null){
+            animateMarker(marker , loc , false);
+            gmap.animateCamera(CameraUpdateFactory.newLatLngZoom(loc, 19.0f));
+
+        }
     }
 
     @Override
@@ -136,4 +145,89 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
         gmap=googleMap ;
 
     }
+
+
+
+
+    public void checkCollision(LatLng user , LatLng target , LatLng prevuser , LatLng prevtarget) {
+
+       boolean b =  Algo.CollisionChecker(user.latitude ,user.longitude , target.latitude ,target.longitude , prevuser.latitude , prevuser.longitude , prevtarget.latitude , prevtarget.longitude) ;
+
+        if(b){
+            String carid ="hello" ;
+            NearbyVehichles.put(carid , target ) ;
+        }
+
+    }
+
+
+    public  void addRedMarker( LatLng dangercar) {
+
+        Bitmap bm = BitmapFactory.decodeResource(getResources() , R.drawable.redcar) ;
+        Bitmap im = Bitmap.createScaledBitmap(bm , 80 , 179 , false) ;
+        MarkerOptions markerop=  new MarkerOptions().position(dangercar).icon(BitmapDescriptorFactory.fromBitmap(im)) ;
+        gmap.addMarker(markerop) ;
+    }
+
+
+    private void MapNearbyVehichles() {
+        HashMap<String , Marker> tempred =   new HashMap<>();
+        Set<String> keys = NearbyVehichles.keySet() ;
+
+        for(String id : keys ){
+
+            Log.d("red" , id) ;
+
+            LatLng ns = NearbyVehichles.get(id)  ;
+            Marker m    = markersred.get(id) ;
+
+            if (m==null) {
+
+                Bitmap bm = BitmapFactory.decodeResource(getResources(), R.drawable.redcar);
+                Bitmap im = Bitmap.createScaledBitmap(bm, 80, 179, false);
+                MarkerOptions markerop = new MarkerOptions().position(ns).icon(BitmapDescriptorFactory.fromBitmap(im));
+                Marker m1 = gmap.addMarker(markerop) ;
+                tempred.put(id , m1) ;
+
+
+            }
+
+
+            else  {
+                animateMarker(m ,   ns, false );
+                tempred.put(id,m) ;
+                markersred.remove(id) ;
+            }
+        }
+
+
+        if (markersred!=null) {
+            Set<String> keys2 = markersred.keySet();
+
+            for (String id : keys2) {
+
+                Marker m = markersred.get(id);
+                removemarker(m);
+            }
+
+
+
+        }
+
+        markersred = tempred ;
+
+
+
+
+    }
+
+
+    public void removemarker ( Marker marker) {
+        marker.remove();
+    }
+
+
+
+
+
 }
