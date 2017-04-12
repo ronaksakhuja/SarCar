@@ -2,6 +2,7 @@ package sodevan.sarcar2;
 
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Point;
@@ -9,6 +10,7 @@ import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.SystemClock;
+import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.animation.LinearInterpolator;
@@ -22,6 +24,8 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 
 import java.util.HashMap;
 import java.util.Set;
@@ -35,6 +39,7 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
     private int flag = 0 , flag2 =0 ;
     HashMap<String,LatLng> NearbyVehichles ;
     HashMap<String , Marker> markersred ;
+    Firebase_datalayer fb=new Firebase_datalayer();
 
 
 
@@ -45,14 +50,28 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
 
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map2);
         mapFragment.getMapAsync(this);
-
+        FirebaseDatabase database = FirebaseDatabase.getInstance();
+        final DatabaseReference myRef = database.getReference("Roads");
+        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(getApplicationContext()) ;
+        final String uname=sp.getString("vehichleno","0000");
 
         final FusedLocation fusedLocation = new FusedLocation(context, new FusedLocation.Callback(){
             @Override
             public void onLocationResult(Location location){
                 //Do as you wish with location here
                 Log.d("TAG","loc:"+location.getLatitude()+" long : "+location.getLongitude());
-                updateloc(new LatLng(location.getLatitude() , location.getLongitude()));
+
+                Double latitude = location.getLatitude() ;
+                Double longitude = location.getLongitude() ;
+
+                if (latitude!=null || longitude!=null){
+                    String road=fb.getRoad(latitude,longitude);
+                    myRef.child(road).child(uname).child("lat").setValue(location.getLatitude());
+                    myRef.child(road).child(uname).child("lon").setValue(location.getLongitude());
+
+                    updateloc(new LatLng(location.getLatitude() , location.getLongitude()));
+                }
+
 
             }
         });
