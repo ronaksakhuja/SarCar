@@ -24,8 +24,11 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 
 import java.util.HashMap;
 import java.util.Set;
@@ -41,7 +44,9 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
     HashMap<String , Marker> markersred ;
     Firebase_datalayer fb=new Firebase_datalayer();
 
-
+    String road="";
+    String prev_road="";
+    double prev_lat=0,prev_long=0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,7 +59,6 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
         final DatabaseReference myRef = database.getReference("Roads");
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(getApplicationContext()) ;
         final String uname=sp.getString("vehichleno","0000");
-
         final FusedLocation fusedLocation = new FusedLocation(context, new FusedLocation.Callback(){
             @Override
             public void onLocationResult(Location location){
@@ -65,10 +69,17 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
                 Double longitude = location.getLongitude() ;
 
                 if (latitude!=null || longitude!=null){
-                    String road=fb.getRoad(latitude,longitude);
+                    if(!road.equals("")){
+                     prev_road=road;}
+                    road=fb.getRoad(latitude,longitude);
+                    myRef.child(prev_road).child(uname).removeValue();
                     myRef.child(road).child(uname).child("lat").setValue(location.getLatitude());
                     myRef.child(road).child(uname).child("lon").setValue(location.getLongitude());
+                        myRef.child(road).child(uname).child("prev_lat").setValue(prev_lat);
+                    myRef.child(road).child(uname).child("prev_lon").setValue(prev_long);
 
+                    prev_lat=latitude;
+                    prev_long=longitude;
                     updateloc(new LatLng(location.getLatitude() , location.getLongitude()));
                 }
 
@@ -85,8 +96,20 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
 
         Timer time=new Timer();
         time.schedule(t,0,5000);
+        myRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        })
 
     }
+
 
 
 
