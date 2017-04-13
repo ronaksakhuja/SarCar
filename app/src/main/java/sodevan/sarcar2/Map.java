@@ -30,10 +30,13 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
+
+import sodevan.sarcar2.Service.CarObject;
 
 public class Map extends AppCompatActivity implements OnMapReadyCallback {
     final Context context = this;
@@ -43,26 +46,32 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
     HashMap<String,LatLng> NearbyVehichles ;
     HashMap<String , Marker> markersred ;
     Firebase_datalayer fb=new Firebase_datalayer();
+    Location mLocation ;
 
     String road="";
     String prev_road="";
     double prev_lat=0,prev_long=0;
+    ArrayList<CarObject> ac  ;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_map);
 
+        ac=new ArrayList<>() ;
+        markersred = new HashMap<>() ;
+
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map2);
         mapFragment.getMapAsync(this);
-        FirebaseDatabase database = FirebaseDatabase.getInstance();
+        final FirebaseDatabase database = FirebaseDatabase.getInstance();
         final DatabaseReference myRef = database.getReference("Roads");
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(getApplicationContext()) ;
-        final String uname=sp.getString("vehichleno","0000");
+        final String uname=sp.getString("vehicleno","0000");
         final FusedLocation fusedLocation = new FusedLocation(context, new FusedLocation.Callback(){
             @Override
             public void onLocationResult(Location location){
                 //Do as you wish with location here
+                mLocation = location ;
                 Log.d("TAG","loc:"+location.getLatitude()+" long : "+location.getLongitude());
 
                 Double latitude = location.getLatitude() ;
@@ -73,11 +82,10 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
                      prev_road=road;}
                     road=fb.getRoad(latitude,longitude);
                     myRef.child(prev_road).child(uname).removeValue();
-                    myRef.child(road).child(uname).child("lat").setValue(location.getLatitude());
-                    myRef.child(road).child(uname).child("lon").setValue(location.getLongitude());
-                        myRef.child(road).child(uname).child("prev_lat").setValue(prev_lat);
-                    myRef.child(road).child(uname).child("prev_lon").setValue(prev_long);
 
+                    CarObject co = new CarObject(location.getLatitude()+"", location.getLongitude()+"" , prev_lat+"" , prev_long+"") ;
+
+                    myRef.child(road).child(uname).setValue(co) ;
                     prev_lat=latitude;
                     prev_long=longitude;
                     updateloc(new LatLng(location.getLatitude() , location.getLongitude()));
@@ -99,6 +107,35 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
         myRef.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
+
+
+
+
+                for (DataSnapshot postsnap :dataSnapshot.getChildren()){
+                    if (postsnap.getKey().equals("ronak")||postsnap.getKey().equals("no road")){
+                        Log.i("Tag" , "ignored") ;
+                    }
+                    else {
+                        for (DataSnapshot postpostsnap : postsnap.getChildren()){
+                            Log.i("car" , postpostsnap+"") ;
+                            if (postpostsnap.getKey().equals(uname)){
+                                Log.i("tag" , "Your car") ;
+                            }
+
+                            else {
+                                CarObject obj = postpostsnap.getValue(CarObject.class) ;
+                                ac.add(obj) ;
+
+
+                            }
+                        }
+                    }
+                }
+
+                Log.i("final :" , ac+"") ;
+                checkCollision(ac);
+
+
 
             }
 
@@ -191,14 +228,32 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
 
 
 
-    public void checkCollision(LatLng user , LatLng target , LatLng prevuser , LatLng prevtarget) {
+    public void checkCollision(ArrayList<CarObject> co)    {
 
-       boolean b =  Algo.CollisionChecker(user.latitude ,user.longitude , target.latitude ,target.longitude , prevuser.latitude , prevuser.longitude , prevtarget.latitude , prevtarget.longitude) ;
+        if (mLocation!=null) {
 
-        if(b){
-            String carid ="hello" ;
-            NearbyVehichles.put(carid , target ) ;
+            NearbyVehichles = new HashMap<>();
+
+            for (CarObject obj : co) {
+
+                LatLng target = new LatLng(Double.parseDouble(obj.getLat()), Double.parseDouble(obj.getLon()));
+                LatLng prevtarget = new LatLng(Double.parseDouble(obj.getPrev_lat()), Double.parseDouble(obj.getPrev_lon()));
+                LatLng my = new LatLng(mLocation.getLatitude(), mLocation.getLongitude());
+                LatLng prev_me = new LatLng(prev_lat, prev_long);
+
+                boolean b = Algo.CollisionChecker(my.latitude, my.longitude, target.latitude, target.longitude, prev_me.latitude, prev_me.longitude, prevtarget.latitude, prevtarget.longitude);
+
+                if (b) {
+                    String carid = "hello";
+                    NearbyVehichles.put(carid, target);
+                }
+            }
+
+            MapNearbyVehichles();
+
         }
+
+
 
     }
 
