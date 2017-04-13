@@ -14,6 +14,7 @@ import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.animation.LinearInterpolator;
+import android.widget.TextView;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -30,7 +31,6 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Set;
 import java.util.Timer;
@@ -44,21 +44,30 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
     Marker marker;
     private int flag = 0 , flag2 =0 ;
     HashMap<String,LatLng> NearbyVehichles ;
+    HashMap<String,LatLng> Nearbyaam ;
+
     HashMap<String , Marker> markersred ;
+    HashMap<String , Marker> ambulance ;
+    TextView loc_road ;
+
     Firebase_datalayer fb=new Firebase_datalayer();
     Location mLocation ;
 
     String road="";
     String prev_road="";
     double prev_lat=0,prev_long=0;
-    ArrayList<CarObject> ac  ;
+    HashMap< String, CarObject> ac  ,aam;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_map);
 
-        ac=new ArrayList<>() ;
+        loc_road = (TextView)findViewById(R.id.loc_road) ;
+
+        ac=new HashMap<>() ;
+        aam = new HashMap<>();
+
         markersred = new HashMap<>() ;
 
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map2);
@@ -79,6 +88,8 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
 
                 if (latitude!=null || longitude!=null){
                     if(!road.equals("")){
+
+                        loc_road.setText(road);
                      prev_road=road;}
                     road=fb.getRoad(latitude,longitude);
                     myRef.child(prev_road).child(uname).removeValue();
@@ -115,6 +126,8 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
                     if (postsnap.getKey().equals("ronak")||postsnap.getKey().equals("no road")){
                         Log.i("Tag" , "ignored") ;
                     }
+
+
                     else {
                         for (DataSnapshot postpostsnap : postsnap.getChildren()){
                             Log.i("car" , postpostsnap+"") ;
@@ -122,9 +135,14 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
                                 Log.i("tag" , "Your car") ;
                             }
 
+                            else if (postpostsnap.getKey().equals("Ambulance")){
+                                CarObject obj = postpostsnap.getValue(CarObject.class) ;
+                                aam.put(postpostsnap.getKey() , obj) ;
+                            }
+
                             else {
                                 CarObject obj = postpostsnap.getValue(CarObject.class) ;
-                                ac.add(obj) ;
+                                ac.put(postpostsnap.getKey() , obj) ;
 
 
                             }
@@ -133,8 +151,8 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
                 }
 
                 Log.i("final :" , ac+"") ;
-                checkCollision(ac);
-
+                checkCollision(ac , "n");
+                checkCollision(aam , "aam");
 
 
             }
@@ -228,31 +246,39 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
 
 
 
-    public void checkCollision(ArrayList<CarObject> co)    {
+    public void checkCollision(HashMap<String , CarObject> co , String type)    {
 
         if (mLocation!=null) {
 
-            NearbyVehichles = new HashMap<>();
 
-            for (CarObject obj : co) {
 
-                LatLng target = new LatLng(Double.parseDouble(obj.getLat()), Double.parseDouble(obj.getLon()));
-                LatLng prevtarget = new LatLng(Double.parseDouble(obj.getPrev_lat()), Double.parseDouble(obj.getPrev_lon()));
-                LatLng my = new LatLng(mLocation.getLatitude(), mLocation.getLongitude());
-                LatLng prev_me = new LatLng(prev_lat, prev_long);
+                Log.i("typ" , type) ;
 
-                boolean b = Algo.CollisionChecker(my.latitude, my.longitude, target.latitude, target.longitude, prev_me.latitude, prev_me.longitude, prevtarget.latitude, prevtarget.longitude);
+                if (type.equals("n"))
+                NearbyVehichles = new HashMap<>();
 
-                if (b) {
-                    String carid = "hello";
-                    NearbyVehichles.put(carid, target);
+                for (HashMap.Entry<String , CarObject> entry : co.entrySet()) {
+
+                    String key = entry.getKey();
+                    CarObject obj = entry.getValue();
+
+
+                    LatLng target = new LatLng(Double.parseDouble(obj.getLat()), Double.parseDouble(obj.getLon()));
+                    LatLng prevtarget = new LatLng(Double.parseDouble(obj.getPrev_lat()), Double.parseDouble(obj.getPrev_lon()));
+                    LatLng my = new LatLng(mLocation.getLatitude(), mLocation.getLongitude());
+                    LatLng prev_me = new LatLng(prev_lat, prev_long);
+
+                    boolean b = Algo.CollisionChecker(my.latitude, my.longitude, target.latitude, target.longitude, prev_me.latitude, prev_me.longitude, prevtarget.latitude, prevtarget.longitude);
+
+                    if (b) {
+                        NearbyVehichles.put( key, target);
+                    }
                 }
-            }
 
-            MapNearbyVehichles();
+                Log.i("tomap" , NearbyVehichles+"");
+                MapNearbyVehichles();
 
         }
-
 
 
     }
@@ -279,8 +305,20 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
             Marker m    = markersred.get(id) ;
 
             if (m==null) {
+                Bitmap bm=null;
 
-                Bitmap bm = BitmapFactory.decodeResource(getResources(), R.drawable.redcar);
+                if (id.equals("Ambulance"))
+                {
+                    bm = BitmapFactory.decodeResource(getResources(), R.drawable.ambulance);
+
+                }
+
+                else   {
+
+                    Log.e("Hello" , id) ;
+
+                    bm = BitmapFactory.decodeResource(getResources(), R.drawable.redcar);
+                }
                 Bitmap im = Bitmap.createScaledBitmap(bm, 80, 179, false);
                 MarkerOptions markerop = new MarkerOptions().position(ns).icon(BitmapDescriptorFactory.fromBitmap(im));
                 Marker m1 = gmap.addMarker(markerop) ;
@@ -294,6 +332,8 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
                 animateMarker(m ,   ns, false );
                 tempred.put(id,m) ;
                 markersred.remove(id) ;
+                Log.e("hello2" , "id") ;
+
             }
         }
 
@@ -305,7 +345,10 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
 
                 Marker m = markersred.get(id);
                 removemarker(m);
+
+                Log.i("yay" ,"waht");
             }
+
 
 
 
