@@ -2,6 +2,7 @@ package sodevan.sarcar2;
 
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Point;
@@ -9,7 +10,7 @@ import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.SystemClock;
-
+import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.animation.LinearInterpolator;
@@ -23,33 +24,73 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
+
+import sodevan.sarcar2.Service.CarObject;
 
 public class Map extends AppCompatActivity implements OnMapReadyCallback {
     final Context context = this;
     GoogleMap gmap ;
     Marker marker;
     private int flag = 0 , flag2 =0 ;
+    HashMap<String,LatLng> NearbyVehichles ;
+    HashMap<String , Marker> markersred ;
+    Firebase_datalayer fb=new Firebase_datalayer();
+    Location mLocation ;
 
-
+    String road="";
+    String prev_road="";
+    double prev_lat=0,prev_long=0;
+    ArrayList<CarObject> ac  ;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_map);
 
+        ac=new ArrayList<>() ;
+        markersred = new HashMap<>() ;
+
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map2);
         mapFragment.getMapAsync(this);
-
-
+        final FirebaseDatabase database = FirebaseDatabase.getInstance();
+        final DatabaseReference myRef = database.getReference("Roads");
+        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(getApplicationContext()) ;
+        final String uname=sp.getString("vehicleno","0000");
         final FusedLocation fusedLocation = new FusedLocation(context, new FusedLocation.Callback(){
             @Override
             public void onLocationResult(Location location){
                 //Do as you wish with location here
+                mLocation = location ;
                 Log.d("TAG","loc:"+location.getLatitude()+" long : "+location.getLongitude());
-                updateloc(new LatLng(location.getLatitude() , location.getLongitude()));
+
+                Double latitude = location.getLatitude() ;
+                Double longitude = location.getLongitude() ;
+
+                if (latitude!=null || longitude!=null){
+                    if(!road.equals("")){
+                     prev_road=road;}
+                    road=fb.getRoad(latitude,longitude);
+                    myRef.child(prev_road).child(uname).removeValue();
+
+                    CarObject co = new CarObject(location.getLatitude()+"", location.getLongitude()+"" , prev_lat+"" , prev_long+"") ;
+
+                    myRef.child(road).child(uname).setValue(co) ;
+                    prev_lat=latitude;
+                    prev_long=longitude;
+                    updateloc(new LatLng(location.getLatitude() , location.getLongitude()));
+                }
+
 
             }
         });
@@ -63,8 +104,49 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
 
         Timer time=new Timer();
         time.schedule(t,0,5000);
+        myRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+
+
+
+
+                for (DataSnapshot postsnap :dataSnapshot.getChildren()){
+                    if (postsnap.getKey().equals("ronak")||postsnap.getKey().equals("no road")){
+                        Log.i("Tag" , "ignored") ;
+                    }
+                    else {
+                        for (DataSnapshot postpostsnap : postsnap.getChildren()){
+                            Log.i("car" , postpostsnap+"") ;
+                            if (postpostsnap.getKey().equals(uname)){
+                                Log.i("tag" , "Your car") ;
+                            }
+
+                            else {
+                                CarObject obj = postpostsnap.getValue(CarObject.class) ;
+                                ac.add(obj) ;
+
+
+                            }
+                        }
+                    }
+                }
+
+                Log.i("final :" , ac+"") ;
+                checkCollision(ac);
+
+
+
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
 
     }
+
 
 
 
@@ -128,6 +210,12 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
             gmap.animateCamera(CameraUpdateFactory.newLatLngZoom(loc, 19.0f));
             flag=1 ;
         }
+
+        else if (marker!=null){
+            animateMarker(marker , loc , false);
+            gmap.animateCamera(CameraUpdateFactory.newLatLngZoom(loc, 19.0f));
+
+        }
     }
 
     @Override
@@ -136,4 +224,107 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
         gmap=googleMap ;
 
     }
+
+
+
+
+    public void checkCollision(ArrayList<CarObject> co)    {
+
+        if (mLocation!=null) {
+
+            NearbyVehichles = new HashMap<>();
+
+            for (CarObject obj : co) {
+
+                LatLng target = new LatLng(Double.parseDouble(obj.getLat()), Double.parseDouble(obj.getLon()));
+                LatLng prevtarget = new LatLng(Double.parseDouble(obj.getPrev_lat()), Double.parseDouble(obj.getPrev_lon()));
+                LatLng my = new LatLng(mLocation.getLatitude(), mLocation.getLongitude());
+                LatLng prev_me = new LatLng(prev_lat, prev_long);
+
+                boolean b = Algo.CollisionChecker(my.latitude, my.longitude, target.latitude, target.longitude, prev_me.latitude, prev_me.longitude, prevtarget.latitude, prevtarget.longitude);
+
+                if (b) {
+                    String carid = "hello";
+                    NearbyVehichles.put(carid, target);
+                }
+            }
+
+            MapNearbyVehichles();
+
+        }
+
+
+
+    }
+
+
+    public  void addRedMarker( LatLng dangercar) {
+
+        Bitmap bm = BitmapFactory.decodeResource(getResources() , R.drawable.redcar) ;
+        Bitmap im = Bitmap.createScaledBitmap(bm , 80 , 179 , false) ;
+        MarkerOptions markerop=  new MarkerOptions().position(dangercar).icon(BitmapDescriptorFactory.fromBitmap(im)) ;
+        gmap.addMarker(markerop) ;
+    }
+
+
+    private void MapNearbyVehichles() {
+        HashMap<String , Marker> tempred =   new HashMap<>();
+        Set<String> keys = NearbyVehichles.keySet() ;
+
+        for(String id : keys ){
+
+            Log.d("red" , id) ;
+
+            LatLng ns = NearbyVehichles.get(id)  ;
+            Marker m    = markersred.get(id) ;
+
+            if (m==null) {
+
+                Bitmap bm = BitmapFactory.decodeResource(getResources(), R.drawable.redcar);
+                Bitmap im = Bitmap.createScaledBitmap(bm, 80, 179, false);
+                MarkerOptions markerop = new MarkerOptions().position(ns).icon(BitmapDescriptorFactory.fromBitmap(im));
+                Marker m1 = gmap.addMarker(markerop) ;
+                tempred.put(id , m1) ;
+
+
+            }
+
+
+            else  {
+                animateMarker(m ,   ns, false );
+                tempred.put(id,m) ;
+                markersred.remove(id) ;
+            }
+        }
+
+
+        if (markersred!=null) {
+            Set<String> keys2 = markersred.keySet();
+
+            for (String id : keys2) {
+
+                Marker m = markersred.get(id);
+                removemarker(m);
+            }
+
+
+
+        }
+
+        markersred = tempred ;
+
+
+
+
+    }
+
+
+    public void removemarker ( Marker marker) {
+        marker.remove();
+    }
+
+
+
+
+
 }
