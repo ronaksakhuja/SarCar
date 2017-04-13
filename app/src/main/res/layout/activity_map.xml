@@ -22,7 +22,7 @@
             android:layout_height="wrap_content"
             android:textColor="#fff"
             android:layout_centerVertical="true"
-            android:text="40 Km/H"
+            android:text="0 Km/H"
             android:textSize="20sp"
             android:paddingLeft="20dp"
             android:id="@+id/speedtv"

@@ -2,6 +2,7 @@ package sodevan.sarcar2;
 
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -11,8 +12,10 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.SystemClock;
 import android.preference.PreferenceManager;
+import android.speech.tts.TextToSpeech;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.View;
 import android.view.animation.LinearInterpolator;
 import android.widget.TextView;
 
@@ -32,6 +35,7 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -42,13 +46,13 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
     final Context context = this;
     GoogleMap gmap ;
     Marker marker;
-    private int flag = 0 , flag2 =0 ;
+    private int flag = 0 , flagds =0 , ovspd=0 ;
     HashMap<String,LatLng> NearbyVehichles ;
     HashMap<String,LatLng> Nearbyaam ;
 
     HashMap<String , Marker> markersred ;
     HashMap<String , Marker> ambulance ;
-    TextView loc_road ;
+    TextView loc_road  ,  speedtv;
 
     Firebase_datalayer fb=new Firebase_datalayer();
     Location mLocation ;
@@ -58,11 +62,30 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
     double prev_lat=0,prev_long=0;
     HashMap< String, CarObject> ac  ,aam;
 
+    TextToSpeech t1 ;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_map);
 
+        t1=new TextToSpeech(getApplicationContext(), new TextToSpeech.OnInitListener() {
+            @Override
+            public void onInit(int status) {
+                if(status != TextToSpeech.ERROR) {
+                    t1.setLanguage(Locale.UK);
+                }
+            }
+        });
+
+        speedtv = (TextView)findViewById(R.id.speedtv) ;
+
+        speedtv.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                overspeed();
+            }
+        });
         loc_road = (TextView)findViewById(R.id.loc_road) ;
 
         ac=new HashMap<>() ;
@@ -81,7 +104,13 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
             public void onLocationResult(Location location){
                 //Do as you wish with location here
                 mLocation = location ;
+
+                 Float speed =  location.getSpeed();
+                 speed =  (float)Math.round(speed*100)/100 ;
+                speedtv.setText(speed+" m/s");
+
                 Log.d("TAG","loc:"+location.getLatitude()+" long : "+location.getLongitude());
+
 
                 Double latitude = location.getLatitude() ;
                 Double longitude = location.getLongitude() ;
@@ -335,6 +364,16 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
                 Log.e("hello2" , "id") ;
 
             }
+
+            if (id.equals("Ambulance")){
+                TxT("Their is an Ambulance in your path , Kindly Switch Lane");
+            }
+
+            else {
+                TxT("Collision Prediction");
+
+            }
+
         }
 
 
@@ -366,8 +405,58 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
         marker.remove();
     }
 
+    public void TxT(String str) {
 
 
+                if(flagds==0){
+                    func(str);
+                    flagds++ ;
 
+                    new Handler().postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            flagds=0 ;
+
+                        }
+                    },10000) ;
+                }
+
+                else{
+
+                }
+            }
+
+
+    public void func(String str)
+    {
+
+        t1.speak(str, TextToSpeech.QUEUE_FLUSH, null);
+    }
+
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+
+
+    }
+
+    public void overspeed() {
+
+        if(ovspd<=5){
+
+            ovspd++ ;
+        }
+
+
+        else {
+            ovspd=0;
+            Intent nes = new Intent(this, ChallanPrompt.class);
+            startActivity(nes);
+
+        }
+
+
+    }
 
 }
