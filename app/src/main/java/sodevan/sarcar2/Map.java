@@ -2,7 +2,6 @@ package sodevan.sarcar2;
 
 
 import android.content.Context;
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -15,7 +14,6 @@ import android.preference.PreferenceManager;
 import android.speech.tts.TextToSpeech;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
-import android.view.View;
 import android.view.animation.LinearInterpolator;
 import android.widget.TextView;
 
@@ -28,15 +26,11 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.firebase.database.DataSnapshot;
-import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.ValueEventListener;
 
 import java.util.HashMap;
 import java.util.Locale;
-import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -80,12 +74,6 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
 
         speedtv = (TextView)findViewById(R.id.speedtv) ;
 
-        speedtv.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                overspeed();
-            }
-        });
         loc_road = (TextView)findViewById(R.id.loc_road) ;
 
         ac=new HashMap<>() ;
@@ -144,53 +132,6 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
 
         Timer time=new Timer();
         time.schedule(t,0,5000);
-        myRef.addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(DataSnapshot dataSnapshot) {
-
-
-
-
-                for (DataSnapshot postsnap :dataSnapshot.getChildren()){
-                    if (postsnap.getKey().equals("ronak")||postsnap.getKey().equals("no road")){
-                        Log.i("Tag" , "ignored") ;
-                    }
-
-
-                    else {
-                        for (DataSnapshot postpostsnap : postsnap.getChildren()){
-                            Log.i("car" , postpostsnap+"") ;
-                            if (postpostsnap.getKey().equals(uname)){
-                                Log.i("tag" , "Your car") ;
-                            }
-
-                            else if (postpostsnap.getKey().equals("Ambulance")){
-                                CarObject obj = postpostsnap.getValue(CarObject.class) ;
-                                aam.put(postpostsnap.getKey() , obj) ;
-                            }
-
-                            else {
-                                CarObject obj = postpostsnap.getValue(CarObject.class) ;
-                                ac.put(postpostsnap.getKey() , obj) ;
-
-
-                            }
-                        }
-                    }
-                }
-
-                Log.i("final :" , ac+"") ;
-                checkCollision(ac , "n");
-                checkCollision(aam , "aam");
-
-
-            }
-
-            @Override
-            public void onCancelled(DatabaseError databaseError) {
-
-            }
-        });
 
     }
 
@@ -275,188 +216,13 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback {
 
 
 
-    public void checkCollision(HashMap<String , CarObject> co , String type)    {
 
-        if (mLocation!=null) {
-
-
-
-                Log.i("typ" , type) ;
-
-                if (type.equals("n"))
-                NearbyVehichles = new HashMap<>();
-
-                for (HashMap.Entry<String , CarObject> entry : co.entrySet()) {
-
-                    String key = entry.getKey();
-                    CarObject obj = entry.getValue();
-
-
-                    LatLng target = new LatLng(Double.parseDouble(obj.getLat()), Double.parseDouble(obj.getLon()));
-                    LatLng prevtarget = new LatLng(Double.parseDouble(obj.getPrev_lat()), Double.parseDouble(obj.getPrev_lon()));
-                    LatLng my = new LatLng(mLocation.getLatitude(), mLocation.getLongitude());
-                    LatLng prev_me = new LatLng(prev_lat, prev_long);
-
-                    boolean b = Algo.CollisionChecker(my.latitude, my.longitude, target.latitude, target.longitude, prev_me.latitude, prev_me.longitude, prevtarget.latitude, prevtarget.longitude);
-
-                    if (b) {
-                        NearbyVehichles.put( key, target);
-                    }
-                }
-
-                Log.i("tomap" , NearbyVehichles+"");
-                MapNearbyVehichles();
-
-        }
-
-
-    }
-
-
-    public  void addRedMarker( LatLng dangercar) {
-
-        Bitmap bm = BitmapFactory.decodeResource(getResources() , R.drawable.redcar) ;
-        Bitmap im = Bitmap.createScaledBitmap(bm , 80 , 179 , false) ;
-        MarkerOptions markerop=  new MarkerOptions().position(dangercar).icon(BitmapDescriptorFactory.fromBitmap(im)) ;
-        gmap.addMarker(markerop) ;
-    }
-
-
-    private void MapNearbyVehichles() {
-        HashMap<String , Marker> tempred =   new HashMap<>();
-        Set<String> keys = NearbyVehichles.keySet() ;
-
-        for(String id : keys ){
-
-            Log.d("red" , id) ;
-
-            LatLng ns = NearbyVehichles.get(id)  ;
-            Marker m    = markersred.get(id) ;
-
-            if (m==null) {
-                Bitmap bm=null;
-
-                if (id.equals("Ambulance"))
-                {
-                    bm = BitmapFactory.decodeResource(getResources(), R.drawable.ambulance);
-
-                }
-
-                else   {
-
-                    Log.e("Hello" , id) ;
-
-                    bm = BitmapFactory.decodeResource(getResources(), R.drawable.redcar);
-                }
-                Bitmap im = Bitmap.createScaledBitmap(bm, 80, 179, false);
-                MarkerOptions markerop = new MarkerOptions().position(ns).icon(BitmapDescriptorFactory.fromBitmap(im));
-                Marker m1 = gmap.addMarker(markerop) ;
-                tempred.put(id , m1) ;
-
-
-            }
-
-
-            else  {
-                animateMarker(m ,   ns, false );
-                tempred.put(id,m) ;
-                markersred.remove(id) ;
-                Log.e("hello2" , "id") ;
-
-            }
-
-            if (id.equals("Ambulance")){
-                TxT("Their is an Ambulance in your path , Kindly Switch Lane");
-            }
-
-            else {
-                TxT("Collision Prediction");
-
-            }
-
-        }
-
-
-        if (markersred!=null) {
-            Set<String> keys2 = markersred.keySet();
-
-            for (String id : keys2) {
-
-                Marker m = markersred.get(id);
-                removemarker(m);
-
-                Log.i("yay" ,"waht");
-            }
-
-
-
-
-        }
-
-        markersred = tempred ;
-
-
-
-
-    }
 
 
     public void removemarker ( Marker marker) {
         marker.remove();
     }
 
-    public void TxT(String str) {
 
-
-                if(flagds==0){
-                    func(str);
-                    flagds++ ;
-
-                    new Handler().postDelayed(new Runnable() {
-                        @Override
-                        public void run() {
-                            flagds=0 ;
-
-                        }
-                    },10000) ;
-                }
-
-                else{
-
-                }
-            }
-
-
-    public void func(String str)
-    {
-
-        t1.speak(str, TextToSpeech.QUEUE_FLUSH, null);
-    }
-
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-
-
-    }
-
-    public void overspeed() {
-
-        if(ovspd<=5){
-
-            ovspd++ ;
-        }
-
-
-        else {
-            ovspd=0;
-            Intent nes = new Intent(this, ChallanPrompt.class);
-            startActivity(nes);
-
-        }
-
-
-    }
 
 }
